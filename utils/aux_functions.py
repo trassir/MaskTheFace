@@ -1,7 +1,7 @@
 # Author: aqeelanwar
 # Created: 27 April,2020, 10:21 PM
 # Email: aqeel.anwar@gatech.edu
-
+from collections import namedtuple
 from configparser import ConfigParser
 import cv2, math, os
 from PIL import Image, ImageDraw
@@ -681,3 +681,33 @@ def display_MaskTheFace():
         for line in file:
             cc = 1
             print(line, end="")
+
+
+def mask_by_img_and_bboxes(image, bboxes, pattern, pattern_weight, color, color_weight):
+    import dlib
+
+    Args = namedtuple('Args', ['pattern', 'pattern_weight', 'color', 'color_weight'])
+    path_to_dlib_model = "dlib_models/shape_predictor_68_face_landmarks.dat"
+    if not os.path.exists(path_to_dlib_model):
+        download_dlib_model()
+
+    kps_predictor = dlib.shape_predictor(path_to_dlib_model)
+
+    original_image = image
+    image = image.copy()
+
+    # Process each face in the image
+    for (i, bbox) in enumerate(bboxes):
+        mask_type = random.choice(get_available_mask_types())
+
+        shape = kps_predictor(original_image, bbox)
+        shape = face_utils.shape_to_np(shape)
+        face_landmarks = shape_to_landmarks(shape)
+        # draw_landmarks(face_landmarks, image)
+        six_points_on_face, angle = get_six_points(face_landmarks, original_image)
+        image, _ = mask_face(
+            image, bbox, six_points_on_face, angle, Args(pattern, pattern_weight, color, color_weight),
+            type=mask_type
+        )
+
+    return image
