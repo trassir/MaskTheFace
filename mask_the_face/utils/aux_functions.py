@@ -6,12 +6,13 @@ from configparser import ConfigParser
 import cv2, math, os
 from PIL import Image, ImageDraw
 from tqdm import tqdm
-from utils.read_cfg import read_cfg
-from utils.fit_ellipse import *
+from mask_the_face.utils.read_cfg import read_cfg
+from mask_the_face.utils.fit_ellipse import *
 import random
-from utils.create_mask import texture_the_mask, color_the_mask
+from mask_the_face.utils.create_mask import texture_the_mask, color_the_mask
 from imutils import face_utils
 import requests
+import numpy as np
 from zipfile import ZipFile
 from tqdm import tqdm
 import bz2, shutil
