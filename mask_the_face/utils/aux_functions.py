@@ -3,6 +3,8 @@
 # Email: aqeel.anwar@gatech.edu
 from collections import namedtuple
 from configparser import ConfigParser
+from pathlib import Path
+
 import cv2, math, os
 from PIL import Image, ImageDraw
 from tqdm import tqdm
@@ -304,8 +306,9 @@ def mask_face(image, face_location, six_points, angle, args, type="surgical"):
     # Read appropriate mask image
     w = image.shape[0]
     h = image.shape[1]
+    module_path = Path(__file__).parent.parent
     if not "empty" in type and not "inpaint" in type:
-        cfg = read_cfg(config_filename="masks/masks.cfg", mask_type=type, verbose=False)
+        cfg = read_cfg(config_filename=module_path / "masks/masks.cfg", mask_type=type, verbose=False)
     else:
         if "left" in type:
             str = "surgical_blue_left"
@@ -313,7 +316,7 @@ def mask_face(image, face_location, six_points, angle, args, type="surgical"):
             str = "surgical_blue_right"
         else:
             str = "surgical_blue"
-        cfg = read_cfg(config_filename="masks/masks.cfg", mask_type=str, verbose=False)
+        cfg = read_cfg(config_filename=module_path / "masks/masks.cfg", mask_type=str, verbose=False)
     img = cv2.imread(cfg.template, cv2.IMREAD_UNCHANGED)
 
     # Process the mask if necessary
@@ -577,7 +580,8 @@ def mask_image(image_path, args):
     gray = image
     face_locations = args.detector(gray, 1)
     mask_type = args.mask_type
-    verbose = args.verbose
+    verbose = args.verbose        
+    module_path = Path(__file__).parent.parent
     if args.code:
         ind = random.randint(0, len(args.code_count) - 1)
         mask_dict = args.mask_dict_of_dict[ind]
@@ -587,7 +591,7 @@ def mask_image(image_path, args):
         args.code_count[ind] += 1
 
     elif mask_type == "random":
-        available_mask_types = get_available_mask_types()
+        available_mask_types = get_available_mask_types(module_path / 'masks/masks.cfg')
         mask_type = random.choice(available_mask_types)
 
     if verbose:
@@ -618,7 +622,7 @@ def mask_image(image_path, args):
             mask_binary_array.append(mask_binary)
             mask.append(mask_type)
         else:
-            available_mask_types = get_available_mask_types()
+            available_mask_types = get_available_mask_types(module_path / 'masks/masks.cfg')
             for m in range(len(available_mask_types)):
                 if len(masked_images) == len(available_mask_types):
                     image = masked_images.pop(m)
@@ -652,10 +656,10 @@ def is_image(path):
         return False 
 
 
-def get_available_mask_types(config_filename="masks/masks.cfg"):
+def get_available_mask_types(config_filename):
     parser = ConfigParser()
     parser.optionxform = str
-    parser.read(config_filename)
+    parser.read(str(config_filename))
     available_mask_types = parser.sections()
     available_mask_types = [
         string for string in available_mask_types if "left" not in string
@@ -678,7 +682,8 @@ def print_orderly(str, n):
 
 
 def display_MaskTheFace():
-    with open("utils/display.txt", "r") as file:
+    module_path = Path(__file__).parent.parent
+    with open(module_path / "utils/display.txt", "r") as file:
         for line in file:
             cc = 1
             print(line, end="")
@@ -699,7 +704,8 @@ def mask_by_img_and_bboxes(image, bboxes, pattern, pattern_weight, color, color_
 
     # Process each face in the image
     for (i, bbox) in enumerate(bboxes):
-        mask_type = random.choice(get_available_mask_types())
+        module_path = Path(__file__).parent.parent
+        mask_type = random.choice(get_available_mask_types(module_path / 'masks/masks.cfg'))
 
         shape = kps_predictor(original_image, bbox)
         shape = face_utils.shape_to_np(shape)

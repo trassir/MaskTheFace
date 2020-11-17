@@ -15,6 +15,7 @@ setup(
     version='0.0.1',
     install_requires=parse_requirements('./relaxed_requirements.txt'),
     packages=find_packages(),
+    include_package_data=True,
     url='https://github.com/trassir/MaskTheFace',
     license='free',
     author='trassir',

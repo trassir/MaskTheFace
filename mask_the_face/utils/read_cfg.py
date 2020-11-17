@@ -22,16 +22,16 @@ def ConvertIfStringIsInt(input_string):
         return input_string
 
 
-def read_cfg(config_filename="mask_the_face/masks/masks.cfg", mask_type="surgical", verbose=False):
+def read_cfg(config_filename, mask_type="surgical", verbose=False):
     parser = ConfigParser()
     parser.optionxform = str
-    parser.read(config_filename)
+    parser.read(str(config_filename))
     cfg = DotMap()
     section_name = mask_type
 
     if verbose:
-        hyphens = "-" * int((80 - len(config_filename)) / 2)
-        print(hyphens + " " + config_filename + " " + hyphens)
+        hyphens = "-" * int((80 - len(str(config_filename))) / 2)
+        print(hyphens + " " + str(config_filename) + " " + hyphens)
 
     # for section_name in parser.sections():
 

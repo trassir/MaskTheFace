@@ -1,0 +1,2 @@
+recursive-include mask_the_face/images/ *
+recursive-include mask_the_face/masks/ *
