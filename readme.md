@@ -1,8 +1,8 @@
 # MaskTheFace - Convert face dataset to masked dataset
-![cover_photo](images/MaskTheFace.png)
+![cover_photo](mask_the_face/images/MaskTheFace.png)
 ## What is MaskTheFace?
 MaskTheFace is computer vision-based script to mask faces in images. It uses a dlib based face landmarks detector to identify the face tilt and six key features of the face necessary for applying mask. Based on the face tilt, corresponding mask template is selected from the library of mask. The template mask is then transformed based on the six key features to fit perfectly on the face. The complete block diagram can be seen below. MaskTheFace provides a number of masks to select from. It is difficult to collect mask dataset under various conditions. MaskTheFace can be used to convert any existing face dataset to masked-face dataset. MaskTheFace identifies all the faces within an image, and applies the user selected masks to them taking into account various limitations such as face angle, mask fit, lighting conditions etc. A single image, or entire directory of images can be used as input to code.
-![block_diagram](images/block_diag.png)
+![block_diagram](mask_the_face/images/block_diag.png)
 
 ## How to install MaskTheFace
 It’s advisable to [make a new virtual environment](https://towardsdatascience.com/setting-up-python-platform-for-machine-learning-projects-cfd85682c54b) with Python 3.6 and install the dependencies. Following steps can be taken to download get started with MaskTheFace
@@ -31,7 +31,7 @@ python mask_the_face.py --path <path-to-file-or-dir> --mask_type <type-of-mask> 
 # Example
 python mask_the_face.py --path 'data/office.jpg' --mask_type 'N95' --verbose --write_original_image
 ```
-![cover_photo](images/run.png)
+![cover_photo](mask_the_face/images/run.png)
 ### Arguments
 |    Argument    |                                                                                                       Explanation                                                                                                       |
 |:--------------:|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
@@ -68,7 +68,7 @@ Currently MaskTheFace supports the following 4 mask types
 4. Cloth
 5. Gas
 
-![mask_types](images/mask_types.png)
+![mask_types](mask_the_face/images/mask_types.png)
 
 New masks are being added. Users, can also add custom masks following the guidelines provided.
 
@@ -76,26 +76,26 @@ New masks are being added. Users, can also add custom masks following the guidel
 Each of the mask types mentioned above can be varied in the following terms to create even more masks
 #### 1. Textures/Patterns variations:
 MaskTheFace provides 24 existing patterns that can be applied to mask types above to create more variations of the graph. Moreover, users can easily add custom patterns following the guidelines provided.
-![mask_textures](images/textures.png)
+![mask_textures](mask_the_face/images/textures.png)
 #### 2. Color variations:
 MaskTheFace provided script to modify existing mask types in terms of colors to generate variations of existing graphs.
-![mask_colors](images/colors.png)
+![mask_colors](mask_the_face/images/colors.png)
 ####  3. Intensity variations:
 MaskTheFace provided script to modify existing mask types in terms of intensity to generate variations of existing graphs.
-![mask_colors](images/intensities.png)
+![mask_colors](mask_the_face/images/intensities.png)
 
 
 ## Features:
 ### Support for multiple mask types
-![cover_photo](images/example1.png)
+![cover_photo](mask_the_face/images/example1.png)
 ### Support for both single and multi-face images:
-![cover_photo](images/multiface.png)
+![cover_photo](mask_the_face/images/multiface.png)
 ### Wide face angle coverage
-![cover_photo](images/angle.png)
+![cover_photo](mask_the_face/images/angle.png)
 ### Brightness corrected mask application
-![cover_photo](images/brightness.png)
+![cover_photo](mask_the_face/images/brightness.png)
 ### Bulk masking on datasets
-![cover_photo](images/dataset.png)
+![cover_photo](mask_the_face/images/dataset.png)
 
 
 ---
@@ -104,7 +104,7 @@ MaskTheFace provided script to modify existing mask types in terms of intensity 
 Masked faces in real world for face recognition (MFR2) is a small dataset with 53 identities of celebrities and politicians with a total of 269 images that are collected from the internet. Each identity has on an average of 5 images. The dataset contains both masked and unmasked faces of the identities.
 The dataset is processed in terms of face alignment and image dimensions. Each image has a dimension of (160x160x3). Sample images from the MFR2 data-set and the mask distribution can be seen below.
 
-![mfr2](images/mfr2.png)
+![mfr2](mask_the_face/images/mfr2.png)
 
 ## Download MFR2
 The dataset can be downloaded using the following command
@@ -147,7 +147,7 @@ MaskTheFace generated datasets can be used to monitor if people are using face m
 ### Example
 The detector above was trained on 2000 images (1000 mask, 1000 without mask) from the VGGface2 dataset. The masked images contained 4 different types of masks. A VGG16 network was trained on these images which achieved a 98.9% accuracy on the test dataset.
 
-![cover_photo](images/mask_no_mask.png)
+![cover_photo](mask_the_face/images/mask_no_mask.png)
 
 ## 3. Classify masks
 MaskTheFace generated dataset can be used to classify among masks using a deep network.

@@ -4,7 +4,8 @@
 
 import argparse
 import dlib
-from utils.aux_functions import *
+import numpy as np
+from mask_the_face.utils.aux_functions import *
 
 
 
