@@ -27,7 +27,7 @@ def download_dlib_model():
     with requests.get(dlib_model_link, stream=True) as r:
         print("Zip file size: ", np.round(len(r.content) / 1024 / 1024, 2), "MB")
         destination = (
-            "dlib_models" + os.path.sep + "shape_predictor_68_face_landmarks.dat.bz2"
+                "dlib_models" + os.path.sep + "shape_predictor_68_face_landmarks.dat.bz2"
         )
         if not os.path.exists(destination.rsplit(os.path.sep, 1)[0]):
             os.mkdir(destination.rsplit(os.path.sep, 1)[0])
@@ -37,7 +37,7 @@ def download_dlib_model():
                 fd.write(chunk)
     print("Extracting dlib model...")
     with bz2.BZ2File(destination) as fr, open(
-        "dlib_models/shape_predictor_68_face_landmarks.dat", "wb"
+            "dlib_models/shape_predictor_68_face_landmarks.dat", "wb"
     ) as fw:
         shutil.copyfileobj(fr, fw)
     print("Saved: ", destination)
@@ -62,7 +62,7 @@ def get_line(face_landmark, image, type="eye", debug=False):
 
     elif type == "nose_mid":
         nose_length = (
-            face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1]
+                face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1]
         )
         left_point = [left_eye_mid[0], left_eye_mid[1] + nose_length / 2]
         right_point = [right_eye_mid[0], right_eye_mid[1] + nose_length / 2]
@@ -71,22 +71,22 @@ def get_line(face_landmark, image, type="eye", debug=False):
         # ) / 2
 
         mid_pointY = (
-            face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]
-        ) / 2
+                             face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]
+                     ) / 2
         mid_pointX = (
-            face_landmark["nose_bridge"][-1][0] + face_landmark["nose_bridge"][0][0]
-        ) / 2
+                             face_landmark["nose_bridge"][-1][0] + face_landmark["nose_bridge"][0][0]
+                     ) / 2
         mid_point = (mid_pointX, mid_pointY)
 
     elif type == "nose_tip":
         nose_length = (
-            face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1]
+                face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1]
         )
         left_point = [left_eye_mid[0], left_eye_mid[1] + nose_length]
         right_point = [right_eye_mid[0], right_eye_mid[1] + nose_length]
         mid_point = (
-            face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]
-        ) / 2
+                            face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]
+                    ) / 2
 
     elif type == "bottom_lip":
         bottom_lip = face_landmark["bottom_lip"]
@@ -190,8 +190,8 @@ def line_intersection(line1, line2):
     segment_maxY = max(line2[0][1], line2[1][1])
 
     if (
-        segment_maxX + 1 >= x >= segment_minX - 1
-        and segment_maxY + 1 >= y >= segment_minY - 1
+            segment_maxX + 1 >= x >= segment_minX - 1
+            and segment_maxY + 1 >= y >= segment_minY - 1
     ):
         flag = True
 
@@ -311,13 +311,13 @@ def mask_face(image, face_location, six_points, angle, args, type="surgical"):
         cfg = read_cfg(config_filename=module_path / "masks/masks.cfg", mask_type=type, verbose=False)
     else:
         if "left" in type:
-            str = "surgical_blue_left"
+            mask_str = "surgical_blue_left"
         elif "right" in type:
-            str = "surgical_blue_right"
+            mask_str = "surgical_blue_right"
         else:
-            str = "surgical_blue"
-        cfg = read_cfg(config_filename=module_path / "masks/masks.cfg", mask_type=str, verbose=False)
-    img = cv2.imread(cfg.template, cv2.IMREAD_UNCHANGED)
+            mask_str = "surgical_blue"
+        cfg = read_cfg(config_filename=module_path / "masks/masks.cfg", mask_type=mask_str, verbose=False)
+    img = cv2.imread(str(module_path / cfg.template), cv2.IMREAD_UNCHANGED)
 
     # Process the mask if necessary
     if args.pattern:
@@ -339,10 +339,10 @@ def mask_face(image, face_location, six_points, angle, args, type="surgical"):
     face_height = face_location[2] - face_location[0]
     face_width = face_location[1] - face_location[3]
     image_face = image[
-        face_location[0] + int(face_height / 2) : face_location[2],
-        face_location[3] : face_location[1],
-        :,
-    ]
+                 face_location[0] + int(face_height / 2): face_location[2],
+                 face_location[3]: face_location[1],
+                 :,
+                 ]
 
     image_face = image
 
@@ -580,7 +580,7 @@ def mask_image(image_path, args):
     gray = image
     face_locations = args.detector(gray, 1)
     mask_type = args.mask_type
-    verbose = args.verbose        
+    verbose = args.verbose
     module_path = Path(__file__).parent.parent
     if args.code:
         ind = random.randint(0, len(args.code_count) - 1)
@@ -648,12 +648,12 @@ def is_image(path):
         image_extensions = ["png", "PNG", "jpg", "JPG"]
 
         if extensions[1:] in image_extensions:
-            return True 
+            return True
         else:
             print("Please input image file. png / jpg")
-            return False 
-    except: 
-        return False 
+            return False
+    except:
+        return False
 
 
 def get_available_mask_types(config_filename):
@@ -689,8 +689,24 @@ def display_MaskTheFace():
             print(line, end="")
 
 
-def mask_by_img_and_bboxes(image, bboxes, pattern, pattern_weight, color, color_weight):
+def mask_by_img_and_bboxes(image, bboxes, pattern_weight, color_weight):
     import dlib
+
+    module_path = Path(__file__).parent.parent
+    _colors = ["#fc1c1a", "#177ABC", "#94B6D2", "#A5AB81", "#DD8047", "#6b425e", "#e26d5a", "#c92c48",
+               "#6a506d", "#ffc900", "#ffffff", "#000000", "#49ff00"]
+    text_path = module_path / 'masks/textures'
+    _patterns = [
+        text_path / 'check/check_1.png', text_path / 'check/check_2.jpg', text_path / 'check/check_3.png',
+        text_path / 'check/check_4.jpg', text_path / 'check/check_5.jpg', text_path / 'check/check_6.jpg',
+        text_path / 'check/check_7.jpg', text_path / 'floral/floral_1.png', text_path / 'floral/floral_2.jpg',
+        text_path / 'floral/floral_3.jpg', text_path / 'floral/floral_4.jpg', text_path / 'floral/floral_5.jpg',
+        text_path / 'floral/floral_6.jpg', text_path / 'floral/floral_7.png', text_path / 'floral/floral_8.png',
+        text_path / 'floral/floral_9.jpg', text_path / 'floral/floral_10.png', text_path / 'floral/floral_11.jpg',
+        text_path / 'floral/grey_petals.png', text_path / 'fruits/bananas.png', text_path / 'fruits/cherry.png',
+        text_path / 'fruits/lemon.png', text_path / 'fruits/pineapple.png', text_path / 'fruits/strawberry.png',
+        text_path / 'others/heart_1.png', text_path / 'others/polka.jpg'
+    ]
 
     Args = namedtuple('Args', ['pattern', 'pattern_weight', 'color', 'color_weight'])
     path_to_dlib_model = "dlib_models/shape_predictor_68_face_landmarks.dat"
@@ -704,10 +720,12 @@ def mask_by_img_and_bboxes(image, bboxes, pattern, pattern_weight, color, color_
 
     # Process each face in the image
     for (i, bbox) in enumerate(bboxes):
-        module_path = Path(__file__).parent.parent
         mask_type = random.choice(get_available_mask_types(module_path / 'masks/masks.cfg'))
+        color = random.choice(_colors)
+        pattern = str(random.choice(_patterns))
 
-        shape = kps_predictor(original_image, bbox)
+        bbox = [int(c) for c in bbox]
+        shape = kps_predictor(original_image, dlib.rectangle(*bbox))
         shape = face_utils.shape_to_np(shape)
         face_landmarks = shape_to_landmarks(shape)
         # draw_landmarks(face_landmarks, image)

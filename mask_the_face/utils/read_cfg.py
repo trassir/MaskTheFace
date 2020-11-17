@@ -26,6 +26,7 @@ def read_cfg(config_filename, mask_type="surgical", verbose=False):
     parser = ConfigParser()
     parser.optionxform = str
     parser.read(str(config_filename))
+
     cfg = DotMap()
     section_name = mask_type
 
