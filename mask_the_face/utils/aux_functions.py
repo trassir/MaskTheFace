@@ -1,54 +1,47 @@
 # Author: aqeelanwar
 # Created: 27 April,2020, 10:21 PM
 # Email: aqeel.anwar@gatech.edu
+import bz2
+import random
+import shutil
 from collections import namedtuple
 from configparser import ConfigParser
 from pathlib import Path
 
-import cv2, math, os
-from PIL import Image, ImageDraw
-from tqdm import tqdm
-from mask_the_face.utils.read_cfg import read_cfg
-from mask_the_face.utils.fit_ellipse import *
-import random
-from mask_the_face.utils.create_mask import texture_the_mask, color_the_mask
-from imutils import face_utils
+import cv2
+import math
+import os
 import requests
-import numpy as np
-from zipfile import ZipFile
-from tqdm import tqdm
-import bz2, shutil
+from PIL import Image, ImageDraw
+from imutils import face_utils
+
+from mask_the_face.utils.create_mask import texture_the_mask, color_the_mask
+from mask_the_face.utils.fit_ellipse import *
+from mask_the_face.utils.read_cfg import read_cfg
 
 
-def download_dlib_model():
+def download_dlib_model(destination: Path):
     print_orderly("Get dlib model", 60)
     dlib_model_link = "http://dlib.net/files/shape_predictor_68_face_landmarks.dat.bz2"
     print("Downloading dlib model...")
     with requests.get(dlib_model_link, stream=True) as r:
         print("Zip file size: ", np.round(len(r.content) / 1024 / 1024, 2), "MB")
-        destination = (
-                "dlib_models" + os.path.sep + "shape_predictor_68_face_landmarks.dat.bz2"
-        )
-        if not os.path.exists(destination.rsplit(os.path.sep, 1)[0]):
-            os.mkdir(destination.rsplit(os.path.sep, 1)[0])
+        destination_bz2 = f'{destination}.bz2'
+        if not os.path.exists(str(destination_bz2).rsplit(os.path.sep, 1)[0]):
+            os.mkdir(destination_bz2.rsplit(os.path.sep, 1)[0])
         print("Saving dlib model...")
-        with open(destination, "wb") as fd:
+        with open(destination_bz2, "wb") as fd:
             for chunk in r.iter_content(chunk_size=32678):
                 fd.write(chunk)
     print("Extracting dlib model...")
-    with bz2.BZ2File(destination) as fr, open(
-            "dlib_models/shape_predictor_68_face_landmarks.dat", "wb"
-    ) as fw:
+    with bz2.BZ2File(destination_bz2) as fr, open(str(destination), "wb") as fw:
         shutil.copyfileobj(fr, fw)
     print("Saved: ", destination)
     print_orderly("done", 60)
+    os.remove(destination_bz2)
 
-    os.remove(destination)
 
-
-def get_line(face_landmark, image, type="eye", debug=False):
-    pil_image = Image.fromarray(image)
-    d = ImageDraw.Draw(pil_image)
+def get_line(face_landmark, image_shape, type="eye"):
     left_eye = face_landmark["left_eye"]
     right_eye = face_landmark["right_eye"]
     left_eye_mid = np.mean(np.array(left_eye), axis=0)
@@ -61,32 +54,19 @@ def get_line(face_landmark, image, type="eye", debug=False):
         mid_point = eye_line_mid
 
     elif type == "nose_mid":
-        nose_length = (
-                face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1]
-        )
+        nose_length = (face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1])
         left_point = [left_eye_mid[0], left_eye_mid[1] + nose_length / 2]
         right_point = [right_eye_mid[0], right_eye_mid[1] + nose_length / 2]
-        # mid_point = (
-        #     face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]
-        # ) / 2
 
-        mid_pointY = (
-                             face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]
-                     ) / 2
-        mid_pointX = (
-                             face_landmark["nose_bridge"][-1][0] + face_landmark["nose_bridge"][0][0]
-                     ) / 2
+        mid_pointY = (face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]) / 2
+        mid_pointX = (face_landmark["nose_bridge"][-1][0] + face_landmark["nose_bridge"][0][0]) / 2
         mid_point = (mid_pointX, mid_pointY)
 
     elif type == "nose_tip":
-        nose_length = (
-                face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1]
-        )
+        nose_length = (face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1])
         left_point = [left_eye_mid[0], left_eye_mid[1] + nose_length]
         right_point = [right_eye_mid[0], right_eye_mid[1] + nose_length]
-        mid_point = (
-                            face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]
-                    ) / 2
+        mid_point = (face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]) / 2
 
     elif type == "bottom_lip":
         bottom_lip = face_landmark["bottom_lip"]
@@ -100,7 +80,6 @@ def get_line(face_landmark, image, type="eye", debug=False):
         bottom_lip = face_landmark["bottom_lip"]
         bottom_lip_mid = np.mean(np.array(bottom_lip), axis=0)
 
-        left_point = eye_line_mid
         left_point = face_landmark["nose_bridge"][0]
         right_point = bottom_lip_mid
 
@@ -113,13 +92,12 @@ def get_line(face_landmark, image, type="eye", debug=False):
 
         mid_point = left_point
 
-    # d.line(eye_mid, width=5, fill='red')
+    else:
+        assert False
+
     y = [left_point[1], right_point[1]]
     x = [left_point[0], right_point[0]]
-    # cv2.imshow('h', image)
-    # cv2.waitKey(0)
-    eye_line = fit_line(x, y, image)
-    d.line(eye_line, width=5, fill="blue")
+    eye_line = fit_line(x, y, image_shape)
 
     # Perpendicular Line
     # (midX, midY) and (midX - y2 + y1, midY + x2 - x1)
@@ -131,10 +109,7 @@ def get_line(face_landmark, image, type="eye", debug=False):
         (left_point[0] + right_point[0]) / 2,
         (left_point[0] + right_point[0]) / 2 - right_point[1] + left_point[1],
     ]
-    perp_line = fit_line(x, y, image)
-    if debug:
-        d.line(perp_line, width=5, fill="red")
-        pil_image.show()
+    perp_line = fit_line(x, y, image_shape)
     return eye_line, perp_line, left_point, right_point, mid_point
 
 
@@ -161,7 +136,6 @@ def plot_lines(face_line, image, debug=False):
 
 
 def line_intersection(line1, line2):
-    # mid = int(len(line1) / 2)
     start = 0
     end = -1
     line1 = ([line1[start][0], line1[start][1]], [line1[end][0], line1[end][1]])
@@ -189,21 +163,18 @@ def line_intersection(line1, line2):
     segment_minY = min(line2[0][1], line2[1][1])
     segment_maxY = max(line2[0][1], line2[1][1])
 
-    if (
-            segment_maxX + 1 >= x >= segment_minX - 1
-            and segment_maxY + 1 >= y >= segment_minY - 1
-    ):
+    if segment_maxX + 1 >= x >= segment_minX - 1 and segment_maxY + 1 >= y >= segment_minY - 1:
         flag = True
 
     return flag, x, y
 
 
-def fit_line(x, y, image):
+def fit_line(x, y, image_shape):
     if x[0] == x[1]:
         x[0] += 0.1
     coefficients = np.polyfit(x, y, 1)
     polynomial = np.poly1d(coefficients)
-    x_axis = np.linspace(0, image.shape[1], 50)
+    x_axis = np.linspace(0, image_shape[1], 50)
     y_axis = polynomial(x_axis)
     eye_line = []
     for i in range(len(x_axis)):
@@ -212,11 +183,11 @@ def fit_line(x, y, image):
     return eye_line
 
 
-def get_six_points(face_landmark, image):
-    _, perp_line1, _, _, m = get_line(face_landmark, image, type="nose_mid")
+def get_six_points(face_landmark, image_shape):
+    _, perp_line1, _, _, m = get_line(face_landmark, image_shape, type="nose_mid")
     face_b = m
 
-    perp_line, _, _, _, _ = get_line(face_landmark, image, type="perp_line")
+    perp_line, _, _, _, _ = get_line(face_landmark, image_shape, type="perp_line")
     points1 = get_points_on_chin(perp_line1, face_landmark)
     points = get_points_on_chin(perp_line, face_landmark)
     if not points1:
@@ -225,34 +196,25 @@ def get_six_points(face_landmark, image):
         face_e = tuple(np.asarray(points1[0]))
     else:
         face_e = tuple((np.asarray(points[0]) + np.asarray(points1[0])) / 2)
-    # face_e = points1[0]
-    nose_mid_line, _, _, _, _ = get_line(face_landmark, image, type="nose_long")
+    nose_mid_line, _, _, _, _ = get_line(face_landmark, image_shape, type="nose_long")
 
     angle = get_angle(perp_line, nose_mid_line)
-    # print("angle: ", angle)
-    nose_mid_line, _, _, _, _ = get_line(face_landmark, image, type="nose_tip")
+    nose_mid_line, _, _, _, _ = get_line(face_landmark, image_shape, type="nose_tip")
     points = get_points_on_chin(nose_mid_line, face_landmark)
     if len(points) < 2:
         face_landmark = get_face_ellipse(face_landmark)
-        # print("extrapolating chin")
-        points = get_points_on_chin(
-            nose_mid_line, face_landmark, chin_type="chin_extrapolated"
-        )
+        points = get_points_on_chin(nose_mid_line, face_landmark, chin_type="chin_extrapolated")
         if len(points) < 2:
-            points = []
-            points.append(face_landmark["chin"][0])
-            points.append(face_landmark["chin"][-1])
+            points = [face_landmark["chin"][0], face_landmark["chin"][-1]]
     face_a = points[0]
     face_c = points[-1]
-    # cv2.imshow('j', image)
-    # cv2.waitKey(0)
-    nose_mid_line, _, _, _, _ = get_line(face_landmark, image, type="bottom_lip")
+
+    nose_mid_line, _, _, _, _ = get_line(face_landmark, image_shape, type="bottom_lip")
     points = get_points_on_chin(nose_mid_line, face_landmark)
     face_d = points[0]
     face_f = points[-1]
 
     six_points = np.float32([face_a, face_b, face_c, face_f, face_e, face_d])
-
     return six_points, angle
 
 
@@ -267,7 +229,6 @@ def get_angle(line1, line2):
     if perp_angle > 180:
         perp_angle -= 180
 
-    # print("perp", perp_angle)
     delta_y = line2[-1][1] - line2[0][1]
     delta_x = line2[-1][0] - line2[0][0]
     nose_angle = math.degrees(math.atan2(delta_y, delta_x))
@@ -278,13 +239,12 @@ def get_angle(line1, line2):
         nose_angle += 360
     if nose_angle > 180:
         nose_angle -= 180
-    # print("nose", nose_angle)
 
     angle = nose_angle - perp_angle
     return angle
 
 
-def mask_face(image, face_location, six_points, angle, args, type="surgical"):
+def mask_face(image, six_points, angle, args, type="surgical"):
     debug = False
 
     # Find the face angle
@@ -294,18 +254,8 @@ def mask_face(image, face_location, six_points, angle, args, type="surgical"):
     elif angle > threshold:
         type += "_left"
 
-    face_height = face_location[2] - face_location[0]
-    face_width = face_location[1] - face_location[3]
-    # image = image_raw[
-    #              face_location[0]-int(face_width/2): face_location[2]+int(face_width/2),
-    #              face_location[3]-int(face_height/2): face_location[1]+int(face_height/2),
-    #              :,
-    #              ]
-    # cv2.imshow('win', image)
-    # cv2.waitKey(0)
     # Read appropriate mask image
-    w = image.shape[0]
-    h = image.shape[1]
+    h, w = image.shape[:2]
     module_path = Path(__file__).parent.parent
     if not "empty" in type and not "inpaint" in type:
         cfg = read_cfg(config_filename=module_path / "masks/masks.cfg", mask_type=type, verbose=False)
@@ -328,22 +278,12 @@ def mask_face(image, face_location, six_points, angle, args, type="surgical"):
         # Apply color to mask
         img = color_the_mask(img, args.color, args.color_weight)
 
-    mask_line = np.float32(
-        [cfg.mask_a, cfg.mask_b, cfg.mask_c, cfg.mask_f, cfg.mask_e, cfg.mask_d]
-    )
+    mask_line = np.float32([cfg.mask_a, cfg.mask_b, cfg.mask_c, cfg.mask_f, cfg.mask_e, cfg.mask_d])
     # Warp the mask
     M, mask = cv2.findHomography(mask_line, six_points)
-    dst_mask = cv2.warpPerspective(img, M, (h, w))
+    dst_mask = cv2.warpPerspective(img, M, (w, h))
     dst_mask_points = cv2.perspectiveTransform(mask_line.reshape(-1, 1, 2), M)
     mask = dst_mask[:, :, 3]
-    face_height = face_location[2] - face_location[0]
-    face_width = face_location[1] - face_location[3]
-    image_face = image[
-                 face_location[0] + int(face_height / 2): face_location[2],
-                 face_location[3]: face_location[1],
-                 :,
-                 ]
-
     image_face = image
 
     # Adjust Brightness
@@ -365,20 +305,16 @@ def mask_face(image, face_location, six_points, angle, args, type="surgical"):
     out_img = cv2.add(img_bg, img_fg[:, :, 0:3])
     if "empty" in type or "inpaint" in type:
         out_img = img_bg
-    # Plot key points
 
     if "inpaint" in type:
         out_img = cv2.inpaint(out_img, mask, 3, cv2.INPAINT_TELEA)
-        # dst_NS = cv2.inpaint(img, mask, 3, cv2.INPAINT_NS)
 
     if debug:
         for i in six_points:
             cv2.circle(out_img, (i[0], i[1]), radius=4, color=(0, 0, 255), thickness=-1)
 
         for i in dst_mask_points:
-            cv2.circle(
-                out_img, (i[0][0], i[0][1]), radius=4, color=(0, 255, 0), thickness=-1
-            )
+            cv2.circle(out_img, (i[0][0], i[0][1]), radius=4, color=(0, 255, 0), thickness=-1)
 
     return out_img, mask
 
@@ -564,84 +500,6 @@ def shape_to_landmarks(shape):
     return face_landmarks
 
 
-def rect_to_bb(rect):
-    x1 = rect.left()
-    x2 = rect.right()
-    y1 = rect.top()
-    y2 = rect.bottom()
-    return (x1, x2, y2, x1)
-
-
-def mask_image(image_path, args):
-    # Read the image
-    image = cv2.imread(image_path)
-    original_image = image.copy()
-    # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    gray = image
-    face_locations = args.detector(gray, 1)
-    mask_type = args.mask_type
-    verbose = args.verbose
-    module_path = Path(__file__).parent.parent
-    if args.code:
-        ind = random.randint(0, len(args.code_count) - 1)
-        mask_dict = args.mask_dict_of_dict[ind]
-        mask_type = mask_dict["type"]
-        args.color = mask_dict["color"]
-        args.pattern = mask_dict["texture"]
-        args.code_count[ind] += 1
-
-    elif mask_type == "random":
-        available_mask_types = get_available_mask_types(module_path / 'masks/masks.cfg')
-        mask_type = random.choice(available_mask_types)
-
-    if verbose:
-        tqdm.write("Faces found: {:2d}".format(len(face_locations)))
-    # Process each face in the image
-    masked_images = []
-    mask_binary_array = []
-    mask = []
-    for (i, face_location) in enumerate(face_locations):
-        shape = args.predictor(gray, face_location)
-        shape = face_utils.shape_to_np(shape)
-        face_landmarks = shape_to_landmarks(shape)
-        face_location = rect_to_bb(face_location)
-        # draw_landmarks(face_landmarks, image)
-        six_points_on_face, angle = get_six_points(face_landmarks, image)
-        mask = []
-        if mask_type != "all":
-            if len(masked_images) > 0:
-                image = masked_images.pop(0)
-            image, mask_binary = mask_face(
-                image, face_location, six_points_on_face, angle, args, type=mask_type
-            )
-
-            # compress to face tight
-            face_height = face_location[2] - face_location[0]
-            face_width = face_location[1] - face_location[3]
-            masked_images.append(image)
-            mask_binary_array.append(mask_binary)
-            mask.append(mask_type)
-        else:
-            available_mask_types = get_available_mask_types(module_path / 'masks/masks.cfg')
-            for m in range(len(available_mask_types)):
-                if len(masked_images) == len(available_mask_types):
-                    image = masked_images.pop(m)
-                img, mask_binary = mask_face(
-                    image,
-                    face_location,
-                    six_points_on_face,
-                    angle,
-                    args,
-                    type=available_mask_types[m],
-                )
-                masked_images.insert(m, img)
-                mask_binary_array.insert(m, mask_binary)
-            mask = available_mask_types
-            cc = 1
-
-    return masked_images, mask, mask_binary_array, original_image
-
-
 def is_image(path):
     try:
         extensions = path[-4:]
@@ -672,7 +530,6 @@ def get_available_mask_types(config_filename):
 
 
 def print_orderly(str, n):
-    # print("")
     hyphens = "-" * int((n - len(str)) / 2)
     str_p = hyphens + " " + str + " " + hyphens
     hyphens_bar = "-" * len(str_p)
@@ -709,9 +566,9 @@ def mask_by_img_and_bboxes(image, bboxes, pattern_weight, color_weight):
     ]
 
     Args = namedtuple('Args', ['pattern', 'pattern_weight', 'color', 'color_weight'])
-    path_to_dlib_model = "dlib_models/shape_predictor_68_face_landmarks.dat"
+    path_to_dlib_model = module_path / "dlib_models/shape_predictor_68_face_landmarks.dat"
     if not os.path.exists(path_to_dlib_model):
-        download_dlib_model()
+        download_dlib_model(module_path / path_to_dlib_model)
 
     kps_predictor = dlib.shape_predictor(path_to_dlib_model)
 
@@ -731,7 +588,7 @@ def mask_by_img_and_bboxes(image, bboxes, pattern_weight, color_weight):
         # draw_landmarks(face_landmarks, image)
         six_points_on_face, angle = get_six_points(face_landmarks, original_image)
         image, _ = mask_face(
-            image, bbox, six_points_on_face, angle, Args(pattern, pattern_weight, color, color_weight),
+            image, six_points_on_face, angle, Args(pattern, pattern_weight, color, color_weight),
             type=mask_type
         )
 

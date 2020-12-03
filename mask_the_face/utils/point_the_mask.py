@@ -2,9 +2,10 @@
 # Created: 2 May,2020, 2:49 AM
 # Email: aqeel.anwar@gatech.edu
 
-from tkinter import filedialog
+import cv2
+import os
 from tkinter import *
-import cv2, os
+from tkinter import filedialog
 
 mouse_pts = []
 
@@ -56,12 +57,12 @@ print(mask_title)
 print("template: ", filename)
 for i in range(len(mouse_pts)):
     name = (
-        "mask_"
-        + name_points[i]
-        + ": "
-        + str(mouse_pts[i][0])
-        + ","
-        + str(mouse_pts[i][1])
+            "mask_"
+            + name_points[i]
+            + ": "
+            + str(mouse_pts[i][0])
+            + ","
+            + str(mouse_pts[i][1])
     )
     print(name)
 
