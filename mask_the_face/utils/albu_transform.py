@@ -12,7 +12,7 @@ try:
 except:
     dlib = None
 
-from albumentations import DualTransform
+from albumentations import ImageOnlyTransform
 
 from mask_the_face.utils.aux_functions import (download_dlib_model, get_available_mask_types,
                                                mask_face, shape_to_landmarks, get_six_points)
@@ -20,14 +20,16 @@ from mask_the_face.utils.aux_functions import (download_dlib_model, get_availabl
 __all__ = ['FaceMaskTransformation']
 
 
-class FaceMaskTransformation(DualTransform):
+class FaceMaskTransformation(ImageOnlyTransform):
     def __init__(self, pattern_weight: float = 0.5, color_weight: float = 0.5,
-                 bboxes_key: str = 'bboxes', keypoints_key: str = '300w_keypoints',
+                 bboxes_key: str = 'bboxes',
+                 with_keypoints: bool = False, keypoints_key: str = '300w_keypoints',
                  suppress_warnings=False, always_apply=False, p=0.5):
         super().__init__(always_apply=always_apply, p=p)
         self._pattern_weight = pattern_weight
         self._color_weight = color_weight
         self._bboxes_key = bboxes_key
+        self._with_keypoints = with_keypoints
         self._keypoints_key = keypoints_key
         self._suppress_warnings = suppress_warnings
         self._module_path = Path(__file__).parent.parent
@@ -46,12 +48,11 @@ class FaceMaskTransformation(DualTransform):
     def get_params_dependent_on_targets(self, params):
         h, w = params['image'].shape[:2]
         assert len(params[self._bboxes_key]) > 0
-        with_keypoints = self._keypoints_key in params
-        if not with_keypoints and self._dlib_kps_model is None:
+        if not self._with_keypoints and self._dlib_kps_model is None:
             self._dlib_kps_model = self._create_kp_dlib_model()
 
         bboxes, kps_by_bbox = [], []
-        if not with_keypoints:
+        if not self._with_keypoints:
             for (x1, y1, x2, y2) in self._make_list_of_list(params[self._bboxes_key]):
                 x1, y1, x2, y2 = map(int, (x1 * w, y1 * h, x2 * w, y2 * h))
                 shape = self._dlib_kps_model(params["image"], dlib.rectangle(x1, y1, x2, y2))
@@ -72,7 +73,10 @@ class FaceMaskTransformation(DualTransform):
 
     @property
     def targets_as_params(self):
-        return ['image', self._bboxes_key, self._keypoints_key]
+        targets = ['image', self._bboxes_key]
+        if self._with_keypoints:
+            targets.append(self._keypoints_key)
+        return targets
 
     def get_transform_init_args_names(self):
         return 'pattern_weight', 'color_weight', 'bboxes_key', 'keypoints_key'
