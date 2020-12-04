@@ -63,6 +63,7 @@ class FaceMaskTransformation(ImageOnlyTransform):
             for (x1, y1, x2, y2), keypoints in zip(self._make_list_of_list(params[self._bboxes_key]),
                                                    self._make_list_of_list(params[self._keypoints_key])):
                 x1, y1, x2, y2 = map(int, (x1 * w, y1 * h, x2 * w, y2 * h))
+                keypoints = keypoints[:, :2].copy()
                 keypoints *= [[w, h]]
                 bboxes.append([x1, y1, x2, y2])
                 kps_by_bbox.append(shape_to_landmarks(keypoints.astype(np.long)))
