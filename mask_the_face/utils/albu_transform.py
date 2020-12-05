@@ -48,7 +48,6 @@ class FaceMaskTransformation(ImageOnlyTransform):
             text_path / 'others/heart_1.png', text_path / 'others/polka.jpg'
         ]
         self._available_mask_types = get_available_mask_types(self._module_path / 'masks/masks.cfg')
-        self._ArgsT = namedtuple('Args', ['pattern', 'pattern_weight', 'color', 'color_weight', 'mask_type'])
         self._dlib_kps_model = None
 
     def apply(self, image, bboxes, kps_by_bbox, mask_face_params_by_bbox, **params):
@@ -110,7 +109,8 @@ class FaceMaskTransformation(ImageOnlyTransform):
         mask_type = random.choice(self._available_mask_types)
         color = random.choice(self._colors)
         pattern = str(random.choice(self._patterns))
-        return self._ArgsT(pattern, self._pattern_weight, color, self._color_weight, mask_type)
+        Args = namedtuple('Args', ['pattern', 'pattern_weight', 'color', 'color_weight', 'mask_type'])
+        return Args(pattern, self._pattern_weight, color, self._color_weight, mask_type)
 
     @staticmethod
     def _make_list_of_list(some: List):
