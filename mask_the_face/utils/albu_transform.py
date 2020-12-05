@@ -33,6 +33,22 @@ class FaceMaskTransformation(ImageOnlyTransform):
         self._keypoints_key = keypoints_key
         self._suppress_warnings = suppress_warnings
         self._module_path = Path(__file__).parent.parent
+        self._colors = ["#fc1c1a", "#177ABC", "#94B6D2", "#A5AB81", "#DD8047", "#6b425e", "#e26d5a", "#c92c48",
+                        "#6a506d", "#ffc900", "#ffffff", "#000000", "#49ff00"]
+        text_path = self._module_path / 'masks/textures'
+        self._patterns = [
+            text_path / 'check/check_1.png', text_path / 'check/check_2.jpg', text_path / 'check/check_3.png',
+            text_path / 'check/check_4.jpg', text_path / 'check/check_5.jpg', text_path / 'check/check_6.jpg',
+            text_path / 'check/check_7.jpg', text_path / 'floral/floral_1.png', text_path / 'floral/floral_2.jpg',
+            text_path / 'floral/floral_3.jpg', text_path / 'floral/floral_4.jpg', text_path / 'floral/floral_5.jpg',
+            text_path / 'floral/floral_6.jpg', text_path / 'floral/floral_7.png', text_path / 'floral/floral_8.png',
+            text_path / 'floral/floral_9.jpg', text_path / 'floral/floral_10.png', text_path / 'floral/floral_11.jpg',
+            text_path / 'floral/grey_petals.png', text_path / 'fruits/bananas.png', text_path / 'fruits/cherry.png',
+            text_path / 'fruits/lemon.png', text_path / 'fruits/pineapple.png', text_path / 'fruits/strawberry.png',
+            text_path / 'others/heart_1.png', text_path / 'others/polka.jpg'
+        ]
+        self._available_mask_types = get_available_mask_types(self._module_path / 'masks/masks.cfg')
+        self._ArgsT = namedtuple('Args', ['pattern', 'pattern_weight', 'color', 'color_weight', 'mask_type'])
         self._dlib_kps_model = None
 
     def apply(self, image, bboxes, kps_by_bbox, mask_face_params_by_bbox, **params):
@@ -40,9 +56,9 @@ class FaceMaskTransformation(ImageOnlyTransform):
             try:
                 six_points_on_face, angle = get_six_points(keypoints, image.shape)
                 image, _ = mask_face(image, six_points_on_face, angle, params, type=params.mask_type)
-            except:
+            except Exception as e:
                 if not self._suppress_warnings:
-                    warning('Some of face cannot be processed in the FaceMaskTransformation')
+                    warning(f'Some of face cannot be processed in the FaceMaskTransformation: {e}')
         return image
 
     def get_params_dependent_on_targets(self, params):
@@ -91,27 +107,10 @@ class FaceMaskTransformation(ImageOnlyTransform):
         return dlib.shape_predictor(str(path_to_dlib_model))
 
     def _generate_metadata_types(self):
-        _colors = ["#fc1c1a", "#177ABC", "#94B6D2", "#A5AB81", "#DD8047", "#6b425e", "#e26d5a", "#c92c48",
-                   "#6a506d", "#ffc900", "#ffffff", "#000000", "#49ff00"]
-        text_path = self._module_path / 'masks/textures'
-        _patterns = [
-            text_path / 'check/check_1.png', text_path / 'check/check_2.jpg', text_path / 'check/check_3.png',
-            text_path / 'check/check_4.jpg', text_path / 'check/check_5.jpg', text_path / 'check/check_6.jpg',
-            text_path / 'check/check_7.jpg', text_path / 'floral/floral_1.png', text_path / 'floral/floral_2.jpg',
-            text_path / 'floral/floral_3.jpg', text_path / 'floral/floral_4.jpg', text_path / 'floral/floral_5.jpg',
-            text_path / 'floral/floral_6.jpg', text_path / 'floral/floral_7.png', text_path / 'floral/floral_8.png',
-            text_path / 'floral/floral_9.jpg', text_path / 'floral/floral_10.png', text_path / 'floral/floral_11.jpg',
-            text_path / 'floral/grey_petals.png', text_path / 'fruits/bananas.png', text_path / 'fruits/cherry.png',
-            text_path / 'fruits/lemon.png', text_path / 'fruits/pineapple.png', text_path / 'fruits/strawberry.png',
-            text_path / 'others/heart_1.png', text_path / 'others/polka.jpg'
-        ]
-        Args = namedtuple('Args', ['pattern', 'pattern_weight', 'color', 'color_weight', 'mask_type'])
-
-        mask_type = random.choice(get_available_mask_types(self._module_path / 'masks/masks.cfg'))
-        color = random.choice(_colors)
-        pattern = str(random.choice(_patterns))
-
-        return Args(pattern, self._pattern_weight, color, self._color_weight, mask_type)
+        mask_type = random.choice(self._available_mask_types)
+        color = random.choice(self._colors)
+        pattern = str(random.choice(self._patterns))
+        return self._ArgsT(pattern, self._pattern_weight, color, self._color_weight, mask_type)
 
     @staticmethod
     def _make_list_of_list(some: List):

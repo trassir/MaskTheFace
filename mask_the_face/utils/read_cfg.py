@@ -3,7 +3,10 @@
 # Email: aqeel.anwar@gatech.edu
 
 from configparser import ConfigParser
+
 from dotmap import DotMap
+
+PARSER_CACHE = None
 
 
 def ConvertIfStringIsInt(input_string):
@@ -23,9 +26,12 @@ def ConvertIfStringIsInt(input_string):
 
 
 def read_cfg(config_filename, mask_type="surgical", verbose=False):
-    parser = ConfigParser()
-    parser.optionxform = str
-    parser.read(str(config_filename))
+    global PARSER_CACHE
+
+    if PARSER_CACHE is None:
+        PARSER_CACHE = ConfigParser()
+        PARSER_CACHE.optionxform = str
+        PARSER_CACHE.read(str(config_filename))
 
     cfg = DotMap()
     section_name = mask_type
@@ -38,7 +44,7 @@ def read_cfg(config_filename, mask_type="surgical", verbose=False):
 
     if verbose:
         print("[" + section_name + "]")
-    for name, value in parser.items(section_name):
+    for name, value in PARSER_CACHE.items(section_name):
         value = ConvertIfStringIsInt(value)
         if name != "template":
             cfg[name] = tuple(int(s) for s in value.split(","))

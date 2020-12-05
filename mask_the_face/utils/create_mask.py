@@ -2,9 +2,9 @@
 # Created: 6 July,2020, 12:14 AM
 # Email: aqeel.anwar@gatech.edu
 
-from PIL import ImageColor
 import cv2
 import numpy as np
+from PIL import ImageColor
 
 COLOR = [
     "#fc1c1a",
@@ -21,6 +21,8 @@ COLOR = [
     "#000000",
     "#49ff00",
 ]
+
+MASK_TEXTURES_CACHE = {}
 
 
 def color_the_mask(mask_image, color, intensity):
@@ -41,11 +43,17 @@ def color_the_mask(mask_image, color, intensity):
 
 
 def texture_the_mask(mask_image, texture_path, intensity):
+    global MASK_TEXTURES_CACHE
+
     assert 0 <= intensity <= 1, "intensity should be between 0 and 1"
     orig_shape = mask_image.shape
     bit_mask = mask_image[:, :, 3]
     mask_image = mask_image[:, :, 0:3]
-    texture_image = cv2.imread(texture_path)
+    if texture_path not in MASK_TEXTURES_CACHE:
+        texture_image = cv2.imread(texture_path)
+        MASK_TEXTURES_CACHE[texture_path] = texture_image
+    else:
+        texture_image = MASK_TEXTURES_CACHE[texture_path]
     texture_image = cv2.resize(texture_image, (orig_shape[1], orig_shape[0]))
 
     mask_texture = cv2.addWeighted(
@@ -57,8 +65,6 @@ def texture_the_mask(mask_image, texture_path, intensity):
     textured_mask[:, :, 3] = bit_mask
 
     return textured_mask
-
-
 
 # cloth_mask = cv2.imread("masks/templates/cloth.png", cv2.IMREAD_UNCHANGED)
 # # cloth_mask = color_the_mask(cloth_mask, color=COLOR[0], intensity=0.5)

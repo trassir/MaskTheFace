@@ -2,6 +2,8 @@
 # Created: 27 April,2020, 10:21 PM
 # Email: aqeel.anwar@gatech.edu
 import bz2
+import math
+import os
 import random
 import shutil
 from collections import namedtuple
@@ -9,8 +11,6 @@ from configparser import ConfigParser
 from pathlib import Path
 
 import cv2
-import math
-import os
 import requests
 from PIL import Image, ImageDraw
 from imutils import face_utils
@@ -18,6 +18,8 @@ from imutils import face_utils
 from mask_the_face.utils.create_mask import texture_the_mask, color_the_mask
 from mask_the_face.utils.fit_ellipse import *
 from mask_the_face.utils.read_cfg import read_cfg
+
+MASK_TEMPLATES_CACHE = {}
 
 
 def download_dlib_model(destination: Path):
@@ -46,7 +48,7 @@ def get_line(face_landmark, image_shape, type="eye"):
     right_eye = face_landmark["right_eye"]
     left_eye_mid = np.mean(np.array(left_eye), axis=0)
     right_eye_mid = np.mean(np.array(right_eye), axis=0)
-    eye_line_mid = (left_eye_mid + right_eye_mid) / 2
+    eye_line_mid = (left_eye_mid + right_eye_mid) / 2.
 
     if type == "eye":
         left_point = left_eye_mid
@@ -55,18 +57,18 @@ def get_line(face_landmark, image_shape, type="eye"):
 
     elif type == "nose_mid":
         nose_length = (face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1])
-        left_point = [left_eye_mid[0], left_eye_mid[1] + nose_length / 2]
-        right_point = [right_eye_mid[0], right_eye_mid[1] + nose_length / 2]
+        left_point = [left_eye_mid[0], left_eye_mid[1] + nose_length / 2.]
+        right_point = [right_eye_mid[0], right_eye_mid[1] + nose_length / 2.]
 
-        mid_pointY = (face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]) / 2
-        mid_pointX = (face_landmark["nose_bridge"][-1][0] + face_landmark["nose_bridge"][0][0]) / 2
+        mid_pointY = (face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]) / 2.
+        mid_pointX = (face_landmark["nose_bridge"][-1][0] + face_landmark["nose_bridge"][0][0]) / 2.
         mid_point = (mid_pointX, mid_pointY)
 
     elif type == "nose_tip":
         nose_length = (face_landmark["nose_bridge"][-1][1] - face_landmark["nose_bridge"][0][1])
         left_point = [left_eye_mid[0], left_eye_mid[1] + nose_length]
         right_point = [right_eye_mid[0], right_eye_mid[1] + nose_length]
-        mid_point = (face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]) / 2
+        mid_point = (face_landmark["nose_bridge"][-1][1] + face_landmark["nose_bridge"][0][1]) / 2.
 
     elif type == "bottom_lip":
         bottom_lip = face_landmark["bottom_lip"]
@@ -102,12 +104,12 @@ def get_line(face_landmark, image_shape, type="eye"):
     # Perpendicular Line
     # (midX, midY) and (midX - y2 + y1, midY + x2 - x1)
     y = [
-        (left_point[1] + right_point[1]) / 2,
-        (left_point[1] + right_point[1]) / 2 + right_point[0] - left_point[0],
+        (left_point[1] + right_point[1]) / 2.,
+        (left_point[1] + right_point[1]) / 2. + right_point[0] - left_point[0],
     ]
     x = [
-        (left_point[0] + right_point[0]) / 2,
-        (left_point[0] + right_point[0]) / 2 - right_point[1] + left_point[1],
+        (left_point[0] + right_point[0]) / 2.,
+        (left_point[0] + right_point[0]) / 2. - right_point[1] + left_point[1],
     ]
     perp_line = fit_line(x, y, image_shape)
     return eye_line, perp_line, left_point, right_point, mid_point
@@ -245,6 +247,8 @@ def get_angle(line1, line2):
 
 
 def mask_face(image, six_points, angle, args, type="surgical"):
+    global MASK_TEMPLATES_CACHE, MASK_TEXTURES_CACHE
+
     debug = False
 
     # Find the face angle
@@ -267,7 +271,13 @@ def mask_face(image, six_points, angle, args, type="surgical"):
         else:
             mask_str = "surgical_blue"
         cfg = read_cfg(config_filename=module_path / "masks/masks.cfg", mask_type=mask_str, verbose=False)
-    img = cv2.imread(str(module_path / cfg.template), cv2.IMREAD_UNCHANGED)
+
+    img_filename = str(module_path / cfg.template)
+    if img_filename not in MASK_TEMPLATES_CACHE:
+        img = cv2.imread(str(module_path / cfg.template), cv2.IMREAD_UNCHANGED)
+        MASK_TEMPLATES_CACHE[img_filename] = img
+    else:
+        img = MASK_TEMPLATES_CACHE[img_filename]
 
     # Process the mask if necessary
     if args.pattern:
@@ -278,7 +288,8 @@ def mask_face(image, six_points, angle, args, type="surgical"):
         # Apply color to mask
         img = color_the_mask(img, args.color, args.color_weight)
 
-    mask_line = np.float32([cfg.mask_a, cfg.mask_b, cfg.mask_c, cfg.mask_f, cfg.mask_e, cfg.mask_d])
+    mask_line = np.float32([cfg.mask_a, cfg.mask_b, cfg.mask_c,
+                            cfg.mask_f, cfg.mask_e, cfg.mask_d])
     # Warp the mask
     M, mask = cv2.findHomography(mask_line, six_points)
     dst_mask = cv2.warpPerspective(img, M, (w, h))
@@ -404,51 +415,44 @@ def check_path(path):
 
 
 def shape_to_landmarks(shape):
-    face_landmarks = {}
-    face_landmarks["left_eyebrow"] = [
+    face_landmarks = {"left_eyebrow": [
         tuple(shape[17]),
         tuple(shape[18]),
         tuple(shape[19]),
         tuple(shape[20]),
         tuple(shape[21]),
-    ]
-    face_landmarks["right_eyebrow"] = [
+    ], "right_eyebrow": [
         tuple(shape[22]),
         tuple(shape[23]),
         tuple(shape[24]),
         tuple(shape[25]),
         tuple(shape[26]),
-    ]
-    face_landmarks["nose_bridge"] = [
+    ], "nose_bridge": [
         tuple(shape[27]),
         tuple(shape[28]),
         tuple(shape[29]),
         tuple(shape[30]),
-    ]
-    face_landmarks["nose_tip"] = [
+    ], "nose_tip": [
         tuple(shape[31]),
         tuple(shape[32]),
         tuple(shape[33]),
         tuple(shape[34]),
         tuple(shape[35]),
-    ]
-    face_landmarks["left_eye"] = [
+    ], "left_eye": [
         tuple(shape[36]),
         tuple(shape[37]),
         tuple(shape[38]),
         tuple(shape[39]),
         tuple(shape[40]),
         tuple(shape[41]),
-    ]
-    face_landmarks["right_eye"] = [
+    ], "right_eye": [
         tuple(shape[42]),
         tuple(shape[43]),
         tuple(shape[44]),
         tuple(shape[45]),
         tuple(shape[46]),
         tuple(shape[47]),
-    ]
-    face_landmarks["top_lip"] = [
+    ], "top_lip": [
         tuple(shape[48]),
         tuple(shape[49]),
         tuple(shape[50]),
@@ -461,9 +465,7 @@ def shape_to_landmarks(shape):
         tuple(shape[62]),
         tuple(shape[63]),
         tuple(shape[64]),
-    ]
-
-    face_landmarks["bottom_lip"] = [
+    ], "bottom_lip": [
         tuple(shape[54]),
         tuple(shape[55]),
         tuple(shape[56]),
@@ -476,9 +478,7 @@ def shape_to_landmarks(shape):
         tuple(shape[66]),
         tuple(shape[67]),
         tuple(shape[60]),
-    ]
-
-    face_landmarks["chin"] = [
+    ], "chin": [
         tuple(shape[0]),
         tuple(shape[1]),
         tuple(shape[2]),
@@ -496,7 +496,8 @@ def shape_to_landmarks(shape):
         tuple(shape[14]),
         tuple(shape[15]),
         tuple(shape[16]),
-    ]
+    ]}
+
     return face_landmarks
 
 
